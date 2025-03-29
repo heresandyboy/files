@@ -1,0 +1,902 @@
+{
+  "name": "Enhanced AI Updates Aggregator for TypeScript Developers",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 1,
+              "unit": "day"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "id": "2",
+      "name": "Fetch Update Timestamp",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Get the last execution timestamp from database or file\nconst fs = require('fs');\nlet lastRunTimestamp;\n\ntry {\n  // Try to read the timestamp from a file\n  if (fs.existsSync('./last_run_timestamp.json')) {\n    const data = fs.readFileSync('./last_run_timestamp.json', 'utf8');\n    const timestampData = JSON.parse(data);\n    lastRunTimestamp = timestampData.lastRun;\n  } else {\n    // If the file doesn't exist, use a default timestamp (1 week ago)\n    const oneWeekAgo = new Date();\n    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);\n    lastRunTimestamp = oneWeekAgo.toISOString();\n  }\n} catch (error) {\n  // In case of error, use a default timestamp\n  const oneWeekAgo = new Date();\n  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);\n  lastRunTimestamp = oneWeekAgo.toISOString();\n}\n\n// Update the timestamp for next execution\nconst currentTimestamp = new Date().toISOString();\nfs.writeFileSync('./last_run_timestamp.json', JSON.stringify({ lastRun: currentTimestamp }), 'utf8');\n\n// Return the timestamp for use in subsequent nodes\nreturn [\n  {\n    json: {\n      lastRun: lastRunTimestamp,\n      currentRun: currentTimestamp\n    }\n  }\n];"
+      },
+      "typeVersion": 1,
+      "position": [380, 300]
+    },
+    {
+      "id": "3",
+      "name": "Check Last Execution",
+      "type": "n8n-nodes-base.if",
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.lastRun }}",
+              "operation": "exists"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "position": [560, 300]
+    },
+    {
+      "id": "4",
+      "name": "API Sources Manager",
+      "type": "n8n-nodes-base.splitInBatches",
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "addSource": true
+        },
+        "sourceDataToSplit": {
+          "__ql": {
+            "json": [
+              {
+                "source": "openai",
+                "url": "https://api.openai.com/v1/announcements",
+                "method": "GET",
+                "authType": "bearer"
+              },
+              {
+                "source": "anthropic",
+                "url": "https://api.anthropic.com/v1/announcements",
+                "method": "GET",
+                "authType": "bearer"
+              },
+              {
+                "source": "googleai",
+                "url": "https://blog.google/technology/ai/rss/",
+                "method": "GET",
+                "authType": "none"
+              },
+              {
+                "source": "huggingface",
+                "url": "https://huggingface.co/api/blog",
+                "method": "GET",
+                "authType": "none"
+              },
+              {
+                "source": "github",
+                "url": "https://api.github.com/repos/github/roadmap/issues?labels=ai,feature",
+                "method": "GET",
+                "authType": "bearer"
+              },
+              {
+                "source": "typescript",
+                "url": "https://github.com/microsoft/TypeScript/releases.atom",
+                "method": "GET",
+                "authType": "none"
+              },
+              {
+                "source": "reddit",
+                "url": "https://www.reddit.com/r/typescript+openai+MachineLearning/search.json?q=typescript+AI&restrict_sr=on&sort=new&t=week",
+                "method": "GET",
+                "authType": "none"
+              },
+              {
+                "source": "npm",
+                "url": "https://registry.npmjs.org/-/v1/search?text=typescript+ai&size=20&popularity=1.0",
+                "method": "GET",
+                "authType": "none"
+              }
+            ]
+          }
+        }
+      },
+      "typeVersion": 1,
+      "position": [740, 300]
+    },
+    {
+      "id": "5",
+      "name": "API Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "method": "={{ $json.method }}",
+        "authentication": "={{ $json.authType }}",
+        "options": {
+          "timeout": 10000
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "AI-Updates-Aggregator"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json, application/rss+xml, application/atom+xml"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3,
+      "position": [920, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "API Keys"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "6",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.if",
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.statusCode }}",
+              "operation": "greaterEqual",
+              "value2": 200
+            },
+            {
+              "value1": "={{ $json.statusCode }}",
+              "operation": "smaller",
+              "value2": 300
+            }
+          ]
+        },
+        "combineOperation": "and"
+      },
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "id": "7",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Log the error\nconsole.error(`Error fetching ${$input.item.json.source}: Status ${$input.item.json.statusCode}`);\nconsole.error(`Response: ${JSON.stringify($input.item.json.data || {})}`)\n\n// Return the error for monitoring\nreturn [\n  {\n    json: {\n      success: false,\n      source: $input.item.json.source,\n      error: {\n        statusCode: $input.item.json.statusCode,\n        message: $input.item.json.data?.message || 'Unknown error',\n        timestamp: new Date().toISOString()\n      }\n    }\n  }\n];"
+      },
+      "typeVersion": 1,
+      "position": [1260, 180]
+    },
+    {
+      "id": "8",
+      "name": "Retry Handler",
+      "type": "n8n-nodes-base.if",
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $execution.retryOf }}",
+              "operation": "exists"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "position": [1420, 180]
+    },
+    {
+      "id": "9",
+      "name": "Send Error Notification",
+      "type": "n8n-nodes-base.slack",
+      "parameters": {
+        "text": "=Error fetching data from {{ $json.source }}:\nStatus Code: {{ $json.error.statusCode }}\nMessage: {{ $json.error.message }}\nTimestamp: {{ $json.error.timestamp }}",
+        "channel": "ai-updates-monitoring",
+        "otherOptions": {
+          "username": "AI Updates Bot"
+        }
+      },
+      "typeVersion": 1,
+      "position": [1580, 180],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-api-credentials",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "id": "10",
+      "name": "Content Extraction",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Import required libraries\nconst { JSDOM } = require('jsdom');\nconst { parseStringPromise } = require('xml2js');\n\n// Main content extraction function\nasync function extractStructuredContent(items) {\n  const extractedItems = [];\n  \n  for (const item of items) {\n    try {\n      // Get source and raw data\n      const source = item.json.source;\n      const data = item.json.data;\n      let extractedData;\n      \n      // Extract data based on source type\n      switch(source) {\n        case 'openai':\n        case 'anthropic':\n        case 'huggingface':\n        case 'npm':\n          // These are already in JSON format\n          extractedData = extractFromJson(data, source);\n          break;\n        case 'github':\n          extractedData = extractFromGithubJson(data, source);\n          break;\n        case 'googleai':\n        case 'typescript':\n          // These are in RSS/Atom format\n          extractedData = await extractFromRssFeed(data, source);\n          break;\n        case 'reddit':\n          extractedData = extractFromRedditJson(data, source);\n          break;\n        default:\n          throw new Error(`Unknown source: ${source}`);\n      }\n      \n      // Add metadata\n      if (extractedData && Array.isArray(extractedData)) {\n        for (const entry of extractedData) {\n          // Generate content hash for deduplication\n          const contentHash = generateHash(entry.title + entry.summary);\n          \n          // Add to extracted items\n          extractedItems.push({\n            json: {\n              source: source,\n              title: entry.title,\n              summary: entry.summary,\n              content: entry.content,\n              publicationDate: entry.publicationDate,\n              url: entry.url,\n              author: entry.author,\n              contentHash: contentHash,\n              categories: entry.categories || [],\n              extracted: true\n            }\n          });\n        }\n      }\n    } catch (error) {\n      console.error(`Error extracting content from ${item.json.source}: ${error.message}`);\n      // Return the item with an error flag\n      extractedItems.push({\n        json: {\n          source: item.json.source,\n          error: error.message,\n          url: item.json.url,\n          extracted: false\n        }\n      });\n    }\n  }\n  \n  return extractedItems;\n}\n\n// Helper Functions\n\n// Extract from JSON APIs (OpenAI, Anthropic, HuggingFace, NPM)\nfunction extractFromJson(data, source) {\n  let extractedData = [];\n  \n  // Handle different JSON structures based on source\n  if (source === 'openai') {\n    extractedData = data.announcements.map(item => ({\n      title: item.title,\n      summary: item.summary,\n      content: item.content,\n      publicationDate: new Date(item.published_at).toISOString(),\n      url: `https://openai.com/blog/${item.slug}`,\n      author: item.author || 'OpenAI',\n      categories: item.categories || ['ai', 'openai']\n    }));\n  } else if (source === 'anthropic') {\n    extractedData = data.announcements.map(item => ({\n      title: item.title,\n      summary: item.description,\n      content: item.content,\n      publicationDate: new Date(item.publication_date).toISOString(),\n      url: `https://www.anthropic.com/news/${item.slug}`,\n      author: item.author || 'Anthropic',\n      categories: item.tags || ['ai', 'anthropic']\n    }));\n  } else if (source === 'huggingface') {\n    extractedData = data.items.map(item => ({\n      title: item.title,\n      summary: item.summary,\n      content: item.content,\n      publicationDate: new Date(item.published_at).toISOString(),\n      url: item.url,\n      author: item.author.name,\n      categories: item.tags || ['ai', 'huggingface']\n    }));\n  } else if (source === 'npm') {\n    extractedData = data.objects.map(item => ({\n      title: item.package.name,\n      summary: item.package.description,\n      content: item.package.description,\n      publicationDate: new Date(item.package.date).toISOString(),\n      url: item.package.links.npm,\n      author: item.package.publisher.username,\n      categories: ['npm', 'typescript', 'ai'].concat(item.package.keywords || [])\n    }));\n  }\n  \n  return extractedData;\n}\n\n// Extract from GitHub Issues JSON\nfunction extractFromGithubJson(data, source) {\n  return data.map(issue => ({\n    title: issue.title,\n    summary: issue.body.substring(0, 200) + '...',\n    content: issue.body,\n    publicationDate: new Date(issue.created_at).toISOString(),\n    url: issue.html_url,\n    author: issue.user.login,\n    categories: issue.labels.map(label => label.name)\n  }));\n}\n\n// Extract from Reddit JSON\nfunction extractFromRedditJson(data, source) {\n  return data.data.children.map(post => ({\n    title: post.data.title,\n    summary: post.data.selftext.substring(0, 200) + (post.data.selftext.length > 200 ? '...' : ''),\n    content: post.data.selftext || post.data.url,\n    publicationDate: new Date(post.data.created_utc * 1000).toISOString(),\n    url: `https://www.reddit.com${post.data.permalink}`,\n    author: post.data.author,\n    categories: ['reddit', post.data.subreddit]\n  }));\n}\n\n// Extract from RSS/Atom Feeds (Google AI, TypeScript)\nasync function extractFromRssFeed(data, source) {\n  try {\n    // Parse XML to JSON\n    const parsedData = await parseStringPromise(data);\n    let extractedData = [];\n    \n    if (source === 'googleai') {\n      // Handle RSS feed structure\n      const items = parsedData.rss.channel[0].item;\n      extractedData = items.map(item => ({\n        title: item.title[0],\n        summary: item.description[0].substring(0, 200) + '...',\n        content: item.description[0],\n        publicationDate: new Date(item.pubDate[0]).toISOString(),\n        url: item.link[0],\n        author: 'Google AI',\n        categories: item.category ? item.category.map(cat => cat.toLowerCase()) : ['ai', 'google']\n      }));\n    } else if (source === 'typescript') {\n      // Handle Atom feed structure\n      const entries = parsedData.feed.entry;\n      extractedData = entries.map(entry => ({\n        title: entry.title[0],\n        summary: entry.content[0]._.substring(0, 200) + '...',\n        content: entry.content[0]._,\n        publicationDate: new Date(entry.updated[0]).toISOString(),\n        url: entry.link[0].$.href,\n        author: entry.author[0].name[0],\n        categories: ['typescript', 'release']\n      }));\n    }\n    \n    return extractedData;\n  } catch (error) {\n    console.error(`Error parsing RSS/Atom feed: ${error.message}`);\n    throw error;\n  }\n}\n\n// Generate a simple hash for content deduplication\nfunction generateHash(str) {\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    const char = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + char;\n    hash = hash & hash; // Convert to 32bit integer\n  }\n  return hash.toString(16);\n}\n\n// Execute the main function\nreturn await extractStructuredContent($input.all());"
+      },
+      "typeVersion": 2,
+      "position": [1260, 400]
+    },
+    {
+      "id": "11",
+      "name": "Schema Validation",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Schema validation function\nfunction validateSchema(items) {\n  const validatedItems = [];\n  const invalidItems = [];\n  \n  // Define the schema for content items\n  const requiredFields = ['source', 'title', 'summary', 'url', 'publicationDate'];\n  \n  for (const item of items) {\n    try {\n      // Check if all required fields exist and are not empty\n      const isValid = requiredFields.every(field => {\n        return item.json[field] !== undefined && \n               item.json[field] !== null && \n               item.json[field] !== '';\n      });\n      \n      // Additional validation for specific fields\n      const hasValidDate = !isNaN(new Date(item.json.publicationDate).getTime());\n      const hasValidUrl = item.json.url && item.json.url.startsWith('http');\n      \n      if (isValid && hasValidDate && hasValidUrl) {\n        // Format the date consistently\n        item.json.publicationDate = new Date(item.json.publicationDate).toISOString();\n        validatedItems.push(item);\n      } else {\n        // Collect invalid items\n        invalidItems.push({\n          json: {\n            source: item.json.source || 'unknown',\n            error: 'Failed schema validation',\n            invalidFields: requiredFields.filter(field => !item.json[field]).join(', '),\n            item: item.json\n          }\n        });\n      }\n    } catch (error) {\n      invalidItems.push({\n        json: {\n          source: item.json?.source || 'unknown',\n          error: `Validation error: ${error.message}`,\n          item: item.json\n        }\n      });\n    }\n  }\n  \n  // Log validation results\n  console.log(`Validated ${validatedItems.length} items, ${invalidItems.length} invalid`);\n  \n  // Return valid items\n  return validatedItems;\n}\n\nreturn validateSchema($input.all());"
+      },
+      "typeVersion": 1,
+      "position": [1420, 400]
+    },
+    {
+      "id": "12",
+      "name": "Deduplication Engine",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// This function handles deduplication of content based on content hash\nfunction deduplicate(items) {\n  // Track seen content hashes\n  const seenHashes = {};\n  const uniqueItems = [];\n  \n  for (const item of items) {\n    const hash = item.json.contentHash;\n    \n    // Only include unique items\n    if (!seenHashes[hash]) {\n      seenHashes[hash] = true;\n      uniqueItems.push(item);\n    } else {\n      console.log(`Duplicate item found: ${item.json.title} from ${item.json.source}`);\n    }\n  }\n  \n  console.log(`Deduplication: ${items.length} items reduced to ${uniqueItems.length} unique items`);\n  return uniqueItems;\n}\n\nreturn deduplicate($input.all());"
+      },
+      "typeVersion": 1,
+      "position": [1580, 400]
+    },
+    {
+      "id": "13",
+      "name": "Content Database",
+      "type": "n8n-nodes-base.postgres",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Check if content already exists in the database\n-- and only insert new items\nDO $$\nDECLARE\n    item RECORD;\n    item_json JSON;\n    content_exists BOOLEAN;\nBEGIN\n    FOR item_json IN SELECT json FROM json_array_elements('{{ $json }}') LOOP\n        -- Check if the content hash already exists\n        SELECT EXISTS (\n            SELECT 1 FROM ai_updates \n            WHERE content_hash = (item_json->>'contentHash')\n        ) INTO content_exists;\n        \n        -- Only insert if it doesn't exist\n        IF NOT content_exists THEN\n            INSERT INTO ai_updates (\n                source,\n                title,\n                summary,\n                content,\n                publication_date,\n                url,\n                author,\n                content_hash,\n                categories,\n                created_at\n            ) VALUES (\n                item_json->>'source',\n                item_json->>'title',\n                item_json->>'summary',\n                item_json->>'content',\n                (item_json->>'publicationDate')::TIMESTAMP,\n                item_json->>'url',\n                item_json->>'author',\n                item_json->>'contentHash',\n                (item_json->>'categories')::TEXT[],\n                NOW()\n            );\n        END IF;\n    END LOOP;\nEND $$;",
+        "additionalFields": {}
+      },
+      "typeVersion": 1,
+      "position": [1740, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL account"
+        }
+      }
+    },
+    {
+      "id": "14",
+      "name": "Fetch New Content",
+      "type": "n8n-nodes-base.postgres",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Get the latest content that was just added\nSELECT \n    id,\n    source,\n    title,\n    summary,\n    content,\n    publication_date,\n    url,\n    author,\n    content_hash as \"contentHash\",\n    categories,\n    created_at\nFROM \n    ai_updates\nWHERE \n    created_at > (NOW() - INTERVAL '1 day')\nORDER BY \n    publication_date DESC;",
+        "additionalFields": {}
+      },
+      "typeVersion": 1,
+      "position": [1900, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL account"
+        }
+      }
+    },
+    {
+      "id": "15",
+      "name": "Content Classifier",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an expert at classifying AI technology updates and determining their relevance for TypeScript developers. Analyze the content provided and assign relevant categories and tags. Focus on identifying updates related to API changes, new features, TypeScript integration patterns, and development best practices."
+        },
+        "text": "=I need you to analyze this AI technology update and classify it with appropriate tags:\n\nTitle: {{ $json.title }}\nSource: {{ $json.source }}\nSummary: {{ $json.summary }}\nContent: {{ $json.content }}\n\nPlease classify this update with the following information:\n1. Primary category (choose one): [API_UPDATE, MODEL_RELEASE, FEATURE_ANNOUNCEMENT, TYPESCRIPT_INTEGRATION, DEVELOPER_TOOLS, BEST_PRACTICES, COMMUNITY_RESOURCE]\n2. Secondary categories (up to 3)\n3. TypeScript relevance score (0-10, where 10 is extremely relevant to TypeScript developers)\n4. Target skill level: [BEGINNER, INTERMEDIATE, ADVANCED]\n5. Key technologies mentioned\n6. Potential impact on TypeScript development\n\nFormat your response as a JSON object."
+      },
+      "typeVersion": 1,
+      "position": [2060, 400]
+    },
+    {
+      "id": "16",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// This function parses the LangChain agent's response to extract classification data\nfunction parseClassification(items) {\n  const parsedItems = [];\n  \n  for (const item of items) {\n    try {\n      // Get the original item and the LangChain response\n      const originalItem = item.json;\n      const langChainResponse = item.json.content;\n      \n      // Try to extract JSON from the response\n      const jsonMatch = langChainResponse.match(/\\{[\\s\\S]*\\}/);\n      let classification;\n      \n      if (jsonMatch) {\n        // Parse JSON from the response\n        classification = JSON.parse(jsonMatch[0]);\n      } else {\n        // Fallback to parsing key-value pairs\n        classification = parseKeyValuePairs(langChainResponse);\n      }\n      \n      // Combine the original item with the classification\n      parsedItems.push({\n        json: {\n          ...originalItem,\n          primaryCategory: classification.primaryCategory || classification['Primary category'] || 'UNCATEGORIZED',\n          secondaryCategories: classification.secondaryCategories || classification['Secondary categories'] || [],\n          typescriptRelevance: parseInt(classification.typescriptRelevance || classification['TypeScript relevance score'] || 0),\n          skillLevel: classification.targetSkillLevel || classification['Target skill level'] || 'INTERMEDIATE',\n          technologies: classification.keyTechnologies || classification['Key technologies mentioned'] || [],\n          impact: classification.potentialImpact || classification['Potential impact on TypeScript development'] || ''\n        }\n      });\n    } catch (error) {\n      console.error(`Error parsing classification: ${error.message}`);\n      parsedItems.push(item); // Return the original item\n    }\n  }\n  \n  return parsedItems;\n}\n\n// Helper function to parse key-value pairs from text\nfunction parseKeyValuePairs(text) {\n  const result = {};\n  const lines = text.split('\\n');\n  \n  for (const line of lines) {\n    const match = line.match(/^(\\d+\\. )?([^:]+):\\s*(.+)$/i);\n    if (match) {\n      const [, , key, value] = match;\n      result[key.trim()] = value.trim();\n    }\n  }\n  \n  return result;\n}\n\nreturn parseClassification($input.all());"
+      },
+      "typeVersion": 1,
+      "position": [2220, 400]
+    },
+    {
+      "id": "17",
+      "name": "TS Relevance Filter",
+      "type": "n8n-nodes-base.if",
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.typescriptRelevance }}",
+              "operation": "larger",
+              "value2": 5
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "position": [2380, 400]
+    },
+    {
+      "id": "18",
+      "name": "Update Database Classification",
+      "type": "n8n-nodes-base.postgres",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Update the database with classification data\nUPDATE ai_updates\nSET \n    primary_category = '{{ $json.primaryCategory }}',\n    secondary_categories = ARRAY[{{ $json.secondaryCategories.map(cat => \"'\" + cat + \"'\").join(', ') || \"''\" }}],\n    typescript_relevance = {{ $json.typescriptRelevance }},\n    skill_level = '{{ $json.skillLevel }}',\n    technologies = ARRAY[{{ $json.technologies.map(tech => \"'\" + tech + \"'\").join(', ') || \"''\" }}],\n    impact = '{{ $json.impact }}'\nWHERE \n    content_hash = '{{ $json.contentHash }}';",
+        "additionalFields": {}
+      },
+      "typeVersion": 1,
+      "position": [2540, 520],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL account"
+        }
+      }
+    },
+    {
+      "id": "19",
+      "name": "Generate Code Examples",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an expert TypeScript developer specializing in AI integrations. Your task is to create practical, working TypeScript code examples that demonstrate how to implement or use the AI feature described. Focus on production-ready code with proper error handling, types, and TypeScript best practices."
+        },
+        "text": "=I need you to create TypeScript code examples for the following AI update:\n\nTitle: {{ $json.title }}\nSource: {{ $json.source }}\nSummary: {{ $json.summary }}\nContent: {{ $json.content }}\nCategories: {{ $json.primaryCategory }}, {{ $json.secondaryCategories.join(', ') }}\nRelevant technologies: {{ $json.technologies.join(', ') }}\n\nPlease create 1-2 TypeScript code examples that demonstrate how to implement or use this feature/API/model. Focus on the following:\n\n1. Well-structured TypeScript code with proper types and interfaces\n2. Error handling and edge cases\n3. Modern TypeScript patterns and best practices\n4. Clear comments explaining key parts\n5. A complete working example that developers can adapt\n\nFor API updates, show how to integrate with the API. For model releases, show how to use the model effectively. For TypeScript integrations, demonstrate the integration pattern."
+      },
+      "typeVersion": 1,
+      "position": [2540, 300]
+    },
+    {
+      "id": "20",
+      "name": "Generate Integration Pattern",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an expert at designing integration patterns for AI technologies in TypeScript applications. Your task is to provide a practical integration pattern that shows how TypeScript developers can incorporate this AI update into their existing applications or systems."
+        },
+        "text": "=Based on this AI update, create an integration pattern for TypeScript developers:\n\nTitle: {{ $json.title }}\nSource: {{ $json.source }}\nSummary: {{ $json.summary }}\nRelevance to TypeScript: {{ $json.typescriptRelevance }}/10\nKey technologies: {{ $json.technologies.join(', ') }}\n\nThe code example provided was:\n{{ $json.content }}\n\nCreate a brief integration pattern explanation (2-3 paragraphs) that explains:\n1. How this update fits into a TypeScript application architecture\n2. The recommended pattern for integrating this feature\n3. How to optimize the integration for TypeScript's type safety and developer experience\n\nThen provide a simple architecture diagram using ASCII art or a text-based representation."
+      },
+      "typeVersion": 1,
+      "position": [2700, 300]
+    },
+    {
+      "id": "21",
+      "name": "Compile Final Report",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an expert curator of AI technology updates for TypeScript developers. Your task is to compile the most relevant and impactful updates into a professional, well-structured report. The report should be informative, practical, and focused on how these updates can be used effectively in TypeScript development."
+        },
+        "text": "=Please compile a comprehensive report of the most important recent AI updates for TypeScript developers. For each update, include the title, source, summary, TypeScript relevance, code examples, and integration patterns.\n\nUse the following data to create your report:\n{{ $json }}\n\nFormat the report with these sections:\n\n1. Executive Summary - A brief overview of the most important updates\n2. Key Updates - Detailed information about each update\n3. TypeScript Integration Insights - Common patterns and best practices\n4. Looking Ahead - Trends and future developments\n\nMake the report visually organized with clear headings, bullet points, and code blocks where appropriate. Format code examples in markdown for better readability."
+      },
+      "typeVersion": 1,
+      "position": [2860, 300]
+    },
+    {
+      "id": "22",
+      "name": "Version History Tracker",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// This function adds version tracking metadata to the report\nfunction addVersionTracking(items) {\n  const date = new Date();\n  const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD\n  \n  const versionedItems = [];\n  \n  for (const item of items) {\n    versionedItems.push({\n      json: {\n        ...item.json,\n        reportMetadata: {\n          version: formattedDate,\n          generatedAt: date.toISOString(),\n          sources: item.json.sources || ['OpenAI', 'Anthropic', 'Google AI', 'HuggingFace', 'GitHub', 'TypeScript', 'Reddit', 'NPM'],\n          itemCount: item.json.itemCount || 'Not specified',\n        },\n        // Add a unique report ID\n        reportId: `ai-updates-ts-${formattedDate}-${Math.floor(Math.random() * 1000)}`,\n        // Add version header to content\n        content: `# AI Updates for TypeScript Developers\n## Version ${formattedDate}\n\n${item.json.content}`\n      }\n    });\n  }\n  \n  return versionedItems;\n}\n\nreturn addVersionTracking($input.all());"
+      },
+      "typeVersion": 1,
+      "position": [3020, 300]
+    },
+    {
+      "id": "23",
+      "name": "Multi Channel Split",
+      "type": "n8n-nodes-base.splitInBatches",
+      "parameters": {
+        "batchSize": 1
+      },
+      "typeVersion": 1,
+      "position": [3200, 300]
+    },
+    {
+      "id": "24",
+      "name": "Google Sheets Exporter",
+      "type": "n8n-nodes-base.googleSheets",
+      "parameters": {
+        "operation": "append",
+        "sheetName": "AI Updates for TypeScript Devs",
+        "options": {},
+        "documentId": "your-google-sheet-id",
+        "range": "A:E",
+        "valueInputMode": "RAW",
+        "valueRenderMode": "FORMATTED_VALUE",
+        "dataMode": "autoMap",
+        "fieldsUi": {
+          "values": [
+            {
+              "field": "Report ID",
+              "value": "={{ $json.reportId }}"
+            },
+            {
+              "field": "Generated On",
+              "value": "={{ $json.reportMetadata.generatedAt }}"
+            },
+            {
+              "field": "Version",
+              "value": "={{ $json.reportMetadata.version }}"
+            },
+            {
+              "field": "Title",
+              "value": "AI Updates for TypeScript Developers"
+            },
+            {
+              "field": "Content",
+              "value": "={{ $json.content }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3,
+      "position": [3370, 100],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sheets-credentials",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "25",
+      "name": "Email Newsletter",
+      "type": "n8n-nodes-base.gmail",
+      "parameters": {
+        "operation": "sendEmail",
+        "subject": "=AI Updates for TypeScript Developers - {{ $json.reportMetadata.version }}",
+        "message": "={{ $json.content }}",
+        "to": "your-email@gmail.com",
+        "options": {
+          "attachments": "",
+          "htmlMessage": true
+        }
+      },
+      "typeVersion": 2,
+      "position": [3370, 240],
+      "credentials": {
+        "gmailOAuth2Api": {
+          "id": "gmail-credentials",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "26",
+      "name": "Slack/Discord Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "ai-updates-webhook",
+        "options": {
+          "responseMode": "responseNode",
+          "responseContentType": "application/json",
+          "responsePropertyName": "data"
+        },
+        "webhookDescription": "AI Updates for TypeScript Webhook"
+      },
+      "typeVersion": 1,
+      "position": [3370, 380]
+    },
+    {
+      "id": "27",
+      "name": "GitHub Issues Generator",
+      "type": "n8n-nodes-base.github",
+      "parameters": {
+        "resource": "issue",
+        "operation": "create",
+        "owner": "your-github-org",
+        "repository": "typescript-ai-updates",
+        "title": "=AI Updates for TypeScript Developers - {{ $json.reportMetadata.version }}",
+        "body": "={{ $json.content }}",
+        "additionalFields": {
+          "labels": [
+            "ai-updates",
+            "typescript",
+            "weekly-digest"
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "position": [3370, 520],
+      "credentials": {
+        "githubApi": {
+          "id": "github-credentials",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "id": "28",
+      "name": "User Feedback Collector",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// This function would collect and process user feedback\n// In a real implementation, this would integrate with analytics\n// platforms, survey tools, or webhook handlers\n\nfunction processUserFeedback(items) {\n  // For demonstration purposes, we're just passing through the items\n  // In a real implementation, you'd aggregate feedback from various sources\n  \n  // Example of what this would actually do:\n  // 1. Collect feedback from email clicks, GitHub reactions, etc.\n  // 2. Store feedback in a database\n  // 3. Generate metrics on content performance\n  \n  return items.map(item => ({\n    json: {\n      ...item.json,\n      feedback: {\n        clicks: Math.floor(Math.random() * 100),  // Simulated metrics\n        likes: Math.floor(Math.random() * 50),\n        comments: Math.floor(Math.random() * 10),\n        topPerformingSection: 'Code Examples'\n      }\n    }\n  }));\n}\n\nreturn processUserFeedback($input.all());"
+      },
+      "typeVersion": 1,
+      "position": [3540, 300]
+    },
+    {
+      "id": "29",
+      "name": "Content Recommendation Engine",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// This function would analyze feedback and content performance\n// to make recommendations for future updates\n\nfunction generateRecommendations(items) {\n  // In a real implementation, this would analyze user feedback patterns\n  // and make intelligent recommendations\n  \n  // For demonstration, we'll generate some static recommendations\n  const recommendations = {\n    topPerformingCategories: ['API_UPDATE', 'TYPESCRIPT_INTEGRATION'],\n    recommendedTopics: ['TypeScript 5.0 features with AI', 'OpenAI Function Calling', 'Vector Databases'],\n    contentFormatPreferences: ['Code examples get 2.5x more engagement', 'Integration patterns are highly valued'],\n    distributionInsights: ['Email has 3.2x higher engagement than Slack', 'GitHub issues receive the most comments']\n  };\n  \n  return items.map(item => ({\n    json: {\n      ...item.json,\n      recommendations\n    }\n  }));\n}\n\nreturn generateRecommendations($input.all());"
+      },
+      "typeVersion": 1,
+      "position": [3700, 300]
+    },
+    {
+      "id": "30",
+      "name": "Analytics Dashboard Updater",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// This function would update an analytics dashboard with the latest metrics\n// In a real implementation, this would integrate with a dashboard tool\n\nfunction updateDashboard(items) {\n  // For demonstration purposes\n  console.log('Updating analytics dashboard with latest report data');\n  \n  // Log key metrics\n  const item = items[0].json;\n  console.log(`Report ID: ${item.reportId}`);\n  console.log(`Generated: ${item.reportMetadata.generatedAt}`);\n  console.log(`Top performing section: ${item.feedback.topPerformingSection}`);\n  console.log(`Recommendations: ${JSON.stringify(item.recommendations)}`);\n  \n  // In a real implementation, you would:\n  // 1. Format the data for your dashboard platform\n  // 2. Send updates to the dashboard via API\n  // 3. Update historical trend data\n  \n  return items;\n}\n\nreturn updateDashboard($input.all());"
+      },
+      "typeVersion": 1,
+      "position": [3860, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Update Timestamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Update Timestamp": {
+      "main": [
+        [
+          {
+            "node": "Check Last Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Last Execution": {
+      "main": [
+        [
+          {
+            "node": "API Sources Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Sources Manager": {
+      "main": [
+        [
+          {
+            "node": "API Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Request": {
+      "main": [
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Content Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error": {
+      "main": [
+        [
+          {
+            "node": "Retry Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Handler": {
+      "main": [
+        [
+          {
+            "node": "Send Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Extraction": {
+      "main": [
+        [
+          {
+            "node": "Schema Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schema Validation": {
+      "main": [
+        [
+          {
+            "node": "Deduplication Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplication Engine": {
+      "main": [
+        [
+          {
+            "node": "Content Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Database": {
+      "main": [
+        [
+          {
+            "node": "Fetch New Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch New Content": {
+      "main": [
+        [
+          {
+            "node": "Content Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Classifier": {
+      "main": [
+        [
+          {
+            "node": "Parse Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Classification": {
+      "main": [
+        [
+          {
+            "node": "TS Relevance Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TS Relevance Filter": {
+      "main": [
+        [
+          {
+            "node": "Generate Code Examples",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Database Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Code Examples": {
+      "main": [
+        [
+          {
+            "node": "Generate Integration Pattern",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Integration Pattern": {
+      "main": [
+        [
+          {
+            "node": "Compile Final Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Final Report": {
+      "main": [
+        [
+          {
+            "node": "Version History Tracker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Version History Tracker": {
+      "main": [
+        [
+          {
+            "node": "Multi Channel Split",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Multi Channel Split": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Exporter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Newsletter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack/Discord Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GitHub Issues Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Exporter": {
+      "main": [
+        [
+          {
+            "node": "User Feedback Collector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Newsletter": {
+      "main": [
+        [
+          {
+            "node": "User Feedback Collector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack/Discord Webhook": {
+      "main": [
+        [
+          {
+            "node": "User Feedback Collector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Issues Generator": {
+      "main": [
+        [
+          {
+            "node": "User Feedback Collector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Feedback Collector": {
+      "main": [
+        [
+          {
+            "node": "Content Recommendation Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Recommendation Engine": {
+      "main": [
+        [
+          {
+            "node": "Analytics Dashboard Updater",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowCredentialPermissionDefault",
+    "saveManualExecutions": true,
+    "errorWorkflow": {
+      "id": "error-notification-workflow",
+      "name": "Error Notification"
+    },
+    "timezone": "UTC"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrentTrigger": {
+        "lastExecuted": "2025-03-28T00:00:00.000Z"
+      }
+    }
+  },
+  "pinData": {}
+}
