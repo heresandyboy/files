@@ -1,11 +1,16 @@
 {
+  "id": "workflow-001",
   "name": "AI News Updates Workflow",
   "active": false,
+  "createdAt": "2025-03-29T00:00:00.000Z",
+  "updatedAt": "2025-03-29T00:00:00.000Z",
   "nodes": [
     {
       "id": "1",
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [200, 300],
       "parameters": {
         "triggerTimes": {
           "item": [
@@ -16,125 +21,119 @@
             }
           ]
         }
-      },
-      "typeVersion": 1,
-      "position": [200, 300]
+      }
     },
     {
       "id": "2",
       "name": "Fetch OpenAI Updates",
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [400, 300],
       "parameters": {
         "url": "https://openai.com/blog",
         "method": "GET",
         "authentication": "none",
         "options": {}
-      },
-      "typeVersion": 1,
-      "position": [400, 300]
+      }
     },
     {
       "id": "3",
       "name": "Fetch Anthropic Updates",
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [400, 400],
       "parameters": {
         "url": "https://www.anthropic.com/news",
         "method": "GET",
         "authentication": "none",
         "options": {}
-      },
-      "typeVersion": 1,
-      "position": [400, 400]
+      }
     },
     {
       "id": "4",
       "name": "Fetch Google AI Updates",
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [400, 500],
       "parameters": {
         "url": "https://blog.google/technology/ai/",
         "method": "GET",
         "authentication": "none",
         "options": {}
-      },
-      "typeVersion": 1,
-      "position": [400, 500]
+      }
     },
     {
       "id": "5",
       "name": "Fetch HuggingFace Updates",
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [400, 600],
       "parameters": {
         "url": "https://huggingface.co/blog",
         "method": "GET",
         "authentication": "none",
         "options": {}
-      },
-      "typeVersion": 1,
-      "position": [400, 600]
+      }
     },
     {
       "id": "6",
       "name": "Fetch GitHub AI Updates",
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [400, 700],
       "parameters": {
         "url": "https://github.blog/category/technology/ai/",
         "method": "GET",
         "authentication": "none",
         "options": {}
-      },
-      "typeVersion": 1,
-      "position": [400, 700]
+      }
     },
     {
       "id": "7",
       "name": "Merge Results",
       "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [600, 300],
       "parameters": {
         "mode": "append"
-      },
-      "typeVersion": 2,
-      "position": [600, 300]
+      }
     },
     {
       "id": "8",
       "name": "Extract Relevant Content",
       "type": "n8n-nodes-base.function",
-      "parameters": {
-        "functionCode": "// This function would extract relevant content from the HTML responses\n// In a real implementation, you would use proper HTML parsing\nconst items = [];\nfor (const item of $input.all()) {\n\ttry {\n\t\t// Extract basic info from the response\n\t\t// This is a simplified example - real implementation would need proper HTML parsing\n\t\tconst source = item.json.url.includes('openai') ? 'OpenAI' : \n\t\t\titem.json.url.includes('anthropic') ? 'Anthropic' : \n\t\t\titem.json.url.includes('google') ? 'Google AI' :\n\t\t\titem.json.url.includes('huggingface') ? 'HuggingFace' :\n\t\t\titem.json.url.includes('github') ? 'GitHub' : 'Other';\n\t\t\n\t\t// Extract some content from the response\n\t\t// This is simplified - real implementation would need proper parsing\n\t\tconst html = item.json.data;\n\t\t\n\t\titems.push({\n\t\t\tjson: {\n\t\t\t\tsource: source,\n\t\t\t\trawContent: html,\n\t\t\t\turl: item.json.url\n\t\t\t}\n\t\t});\n\t} catch (error) {\n\t\t// Skip items that can't be processed\n\t}\n}\n\nreturn items;"
-      },
       "typeVersion": 1,
-      "position": [800, 300]
+      "position": [800, 300],
+      "parameters": {
+        "functionCode": "// Extract relevant content from the HTML responses\nconst items = [];\nfor (const item of $input.all()) {\n  try {\n    const source = item.json.url.includes('openai') ? 'OpenAI' : \n                   item.json.url.includes('anthropic') ? 'Anthropic' : \n                   item.json.url.includes('google') ? 'Google AI' :\n                   item.json.url.includes('huggingface') ? 'HuggingFace' :\n                   item.json.url.includes('github') ? 'GitHub' : 'Other';\n    const html = item.json.data;\n    items.push({\n      json: {\n        source: source,\n        rawContent: html,\n        url: item.json.url\n      }\n    });\n  } catch (error) {\n    // Skip items that can't be processed\n  }\n}\nreturn items;"
+      }
     },
     {
       "id": "9",
-      "name": "Filter and Analyze Updates",
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "parameters": {
-        "options": {
-          "systemMessage": "You are an AI expert focused on helping TypeScript developers. Your task is to analyze the raw content from various AI provider blogs and news sources, and identify the 10 most interesting and relevant updates for TypeScript developers. Focus on updates that would be useful for building applications with AI models. For each update, extract: 1) The AI provider/model, 2) A brief summary of the update, 3) Why it's relevant for TypeScript developers, and 4) A potential use case or code example if applicable."
-        },
-        "text": "=Please analyze the following content from AI provider websites and extract the 10 most interesting updates relevant to TypeScript developers:\n\n{{ $json.rawContent }}\n\nSource: {{ $json.source }}\nURL: {{ $json.url }}"
-      },
+      "name": "Analyze Updates",
+      "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [1000, 300]
+      "position": [1000, 300],
+      "parameters": {
+        "functionCode": "const items = $input.all();\nreturn items.map(item => {\n  const raw = item.json.rawContent || '';\n  const snippet = raw.substring(0, 100);\n  return {\n    json: {\n      source: item.json.source,\n      analysis: `Update from ${item.json.source}: ${snippet}...`,\n      url: item.json.url\n    }\n  };\n});"
+      }
     },
     {
       "id": "10",
       "name": "Compile Final Report",
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "parameters": {
-        "options": {
-          "systemMessage": "You are an AI expert focused on helping TypeScript developers. Your task is to compile a comprehensive report of the 10 most interesting AI updates from various providers that are specifically relevant to TypeScript developers. Format the report in a clean, organized way with sections for each update. Include code examples in TypeScript where relevant. Focus on practical applications and implementation details that would be useful for developers."
-        },
-        "text": "=Please compile a final report of the 10 most interesting AI updates for TypeScript developers based on the following analyses:\n\n{{ $json.content }}"
-      },
+      "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [1200, 300]
+      "position": [1200, 300],
+      "parameters": {
+        "functionCode": "const items = $input.all();\nlet report = 'AI Updates Report:\\n\\n';\nitems.forEach(item => {\n  report += `${item.json.source} update: ${item.json.analysis}\\nURL: ${item.json.url}\\n\\n`;\n});\nreturn [{ json: { content: report } }];"
+      }
     },
     {
       "id": "11",
       "name": "Save to Google Sheets",
       "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [1400, 300],
       "parameters": {
         "operation": "append",
         "sheetName": "AI Updates for TypeScript Devs",
@@ -145,8 +144,6 @@
         "valueRenderMode": "FORMATTED_VALUE",
         "dataMode": "autoMap"
       },
-      "typeVersion": 3,
-      "position": [1400, 300],
       "credentials": {
         "googleSheetsOAuth2Api": "your-google-sheets-oauth2-credentials"
       }
@@ -155,6 +152,8 @@
       "id": "12",
       "name": "Send Email with Gmail",
       "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1600, 300],
       "parameters": {
         "operation": "sendEmail",
         "subject": "Weekly AI Provider Updates for TypeScript Developers",
@@ -165,8 +164,6 @@
           "htmlMessage": true
         }
       },
-      "typeVersion": 2,
-      "position": [1600, 300],
       "credentials": {
         "gmailOAuth2Api": "your-gmail-oauth2-credentials"
       }
@@ -176,135 +173,59 @@
     "Schedule Trigger": {
       "main": [
         [
-          {
-            "node": "Fetch OpenAI Updates",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch Anthropic Updates",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch Google AI Updates",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch HuggingFace Updates",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch GitHub AI Updates",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Fetch OpenAI Updates", "type": "main", "index": 0 },
+          { "node": "Fetch Anthropic Updates", "type": "main", "index": 0 },
+          { "node": "Fetch Google AI Updates", "type": "main", "index": 0 },
+          { "node": "Fetch HuggingFace Updates", "type": "main", "index": 0 },
+          { "node": "Fetch GitHub AI Updates", "type": "main", "index": 0 }
         ]
       ]
     },
     "Fetch OpenAI Updates": {
       "main": [
-        [
-          {
-            "node": "Merge Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Merge Results", "type": "main", "index": 0 }]
       ]
     },
     "Fetch Anthropic Updates": {
       "main": [
-        [
-          {
-            "node": "Merge Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Merge Results", "type": "main", "index": 0 }]
       ]
     },
     "Fetch Google AI Updates": {
       "main": [
-        [
-          {
-            "node": "Merge Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Merge Results", "type": "main", "index": 0 }]
       ]
     },
     "Fetch HuggingFace Updates": {
       "main": [
-        [
-          {
-            "node": "Merge Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Merge Results", "type": "main", "index": 0 }]
       ]
     },
     "Fetch GitHub AI Updates": {
       "main": [
-        [
-          {
-            "node": "Merge Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Merge Results", "type": "main", "index": 0 }]
       ]
     },
     "Merge Results": {
       "main": [
-        [
-          {
-            "node": "Extract Relevant Content",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Extract Relevant Content", "type": "main", "index": 0 }]
       ]
     },
     "Extract Relevant Content": {
       "main": [
-        [
-          {
-            "node": "Filter and Analyze Updates",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Analyze Updates", "type": "main", "index": 0 }]
       ]
     },
-    "Filter and Analyze Updates": {
+    "Analyze Updates": {
       "main": [
-        [
-          {
-            "node": "Compile Final Report",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Compile Final Report", "type": "main", "index": 0 }]
       ]
     },
     "Compile Final Report": {
       "main": [
         [
-          {
-            "node": "Save to Google Sheets",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Send Email with Gmail",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Save to Google Sheets", "type": "main", "index": 0 },
+          { "node": "Send Email with Gmail", "type": "main", "index": 0 }
         ]
       ]
     }
