@@ -1,4 +1,6 @@
 {
+  "name": "AI News Updates Workflow",
+  "active": false,
   "nodes": [
     {
       "id": "1",
@@ -98,7 +100,7 @@
       "name": "Extract Relevant Content",
       "type": "n8n-nodes-base.function",
       "parameters": {
-        "functionCode": "// This function would extract relevant content from the HTML responses\n// In a real implementation, you would use proper HTML parsing\nconst items = [];\nfor (const item of $input.all()) {\n try {\n // Extract basic info from the response\n // This is a simplified example - real implementation would need proper HTML parsing\n const source = item.json.url.includes('openai') ? 'OpenAI' : \n item.json.url.includes('anthropic') ? 'Anthropic' : \n item.json.url.includes('google') ? 'Google AI' :\n item.json.url.includes('huggingface') ? 'HuggingFace' :\n item.json.url.includes('github') ? 'GitHub' : 'Other';\n \n // Extract some content from the response\n // This is simplified - real implementation would need proper parsing\n const html = item.json.data;\n \n items.push({\n json: {\n source: source,\n rawContent: html,\n url: item.json.url\n }\n });\n } catch (error) {\n // Skip items that can't be processed\n }\n}\n\nreturn items;"
+        "functionCode": "// This function would extract relevant content from the HTML responses\n// In a real implementation, you would use proper HTML parsing\nconst items = [];\nfor (const item of $input.all()) {\n\ttry {\n\t\t// Extract basic info from the response\n\t\t// This is a simplified example - real implementation would need proper HTML parsing\n\t\tconst source = item.json.url.includes('openai') ? 'OpenAI' : \n\t\t\titem.json.url.includes('anthropic') ? 'Anthropic' : \n\t\t\titem.json.url.includes('google') ? 'Google AI' :\n\t\t\titem.json.url.includes('huggingface') ? 'HuggingFace' :\n\t\t\titem.json.url.includes('github') ? 'GitHub' : 'Other';\n\t\t\n\t\t// Extract some content from the response\n\t\t// This is simplified - real implementation would need proper parsing\n\t\tconst html = item.json.data;\n\t\t\n\t\titems.push({\n\t\t\tjson: {\n\t\t\t\tsource: source,\n\t\t\t\trawContent: html,\n\t\t\t\turl: item.json.url\n\t\t\t}\n\t\t});\n\t} catch (error) {\n\t\t// Skip items that can't be processed\n\t}\n}\n\nreturn items;"
       },
       "typeVersion": 1,
       "position": [800, 300]
@@ -306,5 +308,6 @@
         ]
       ]
     }
-  }
+  },
+  "settings": {}
 }
