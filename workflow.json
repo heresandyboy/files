@@ -1,9 +1,7 @@
 {
-  "id": "workflow-001",
+  "id": "1",
   "name": "AI News Updates Workflow",
   "active": false,
-  "createdAt": "2025-03-29T00:00:00.000Z",
-  "updatedAt": "2025-03-29T00:00:00.000Z",
   "nodes": [
     {
       "id": "1",
@@ -32,8 +30,7 @@
       "parameters": {
         "url": "https://openai.com/blog",
         "method": "GET",
-        "authentication": "none",
-        "options": {}
+        "authentication": "none"
       }
     },
     {
@@ -45,8 +42,7 @@
       "parameters": {
         "url": "https://www.anthropic.com/news",
         "method": "GET",
-        "authentication": "none",
-        "options": {}
+        "authentication": "none"
       }
     },
     {
@@ -58,8 +54,7 @@
       "parameters": {
         "url": "https://blog.google/technology/ai/",
         "method": "GET",
-        "authentication": "none",
-        "options": {}
+        "authentication": "none"
       }
     },
     {
@@ -71,8 +66,7 @@
       "parameters": {
         "url": "https://huggingface.co/blog",
         "method": "GET",
-        "authentication": "none",
-        "options": {}
+        "authentication": "none"
       }
     },
     {
@@ -84,8 +78,7 @@
       "parameters": {
         "url": "https://github.blog/category/technology/ai/",
         "method": "GET",
-        "authentication": "none",
-        "options": {}
+        "authentication": "none"
       }
     },
     {
@@ -105,7 +98,7 @@
       "typeVersion": 1,
       "position": [800, 300],
       "parameters": {
-        "functionCode": "// Extract relevant content from the HTML responses\nconst items = [];\nfor (const item of $input.all()) {\n  try {\n    const source = item.json.url.includes('openai') ? 'OpenAI' : \n                   item.json.url.includes('anthropic') ? 'Anthropic' : \n                   item.json.url.includes('google') ? 'Google AI' :\n                   item.json.url.includes('huggingface') ? 'HuggingFace' :\n                   item.json.url.includes('github') ? 'GitHub' : 'Other';\n    const html = item.json.data;\n    items.push({\n      json: {\n        source: source,\n        rawContent: html,\n        url: item.json.url\n      }\n    });\n  } catch (error) {\n    // Skip items that can't be processed\n  }\n}\nreturn items;"
+        "functionCode": "// Extract relevant content from the HTML responses\nconst items = [];\nfor (const item of $input.all()) {\n  try {\n    const source = item.json.url.includes('openai') ? 'OpenAI' :\n                   item.json.url.includes('anthropic') ? 'Anthropic' :\n                   item.json.url.includes('google') ? 'Google AI' :\n                   item.json.url.includes('huggingface') ? 'HuggingFace' :\n                   item.json.url.includes('github') ? 'GitHub' : 'Other';\n    const html = item.json.data;\n    items.push({ json: { source, rawContent: html, url: item.json.url } });\n  } catch (error) {\n    // Skip errors\n  }\n}\nreturn items;"
       }
     },
     {
@@ -115,7 +108,7 @@
       "typeVersion": 1,
       "position": [1000, 300],
       "parameters": {
-        "functionCode": "const items = $input.all();\nreturn items.map(item => {\n  const raw = item.json.rawContent || '';\n  const snippet = raw.substring(0, 100);\n  return {\n    json: {\n      source: item.json.source,\n      analysis: `Update from ${item.json.source}: ${snippet}...`,\n      url: item.json.url\n    }\n  };\n});"
+        "functionCode": "const items = $input.all();\nreturn items.map(item => {\n  const snippet = (item.json.rawContent || '').substring(0, 100);\n  return { json: { source: item.json.source, analysis: `Update from ${item.json.source}: ${snippet}...`, url: item.json.url } };\n});"
       }
     },
     {
@@ -137,11 +130,9 @@
       "parameters": {
         "operation": "append",
         "sheetName": "AI Updates for TypeScript Devs",
-        "options": {},
         "documentId": "your-google-sheet-id",
         "range": "A:C",
         "valueInputMode": "RAW",
-        "valueRenderMode": "FORMATTED_VALUE",
         "dataMode": "autoMap"
       },
       "credentials": {
@@ -183,42 +174,58 @@
     },
     "Fetch OpenAI Updates": {
       "main": [
-        [{ "node": "Merge Results", "type": "main", "index": 0 }]
+        [
+          { "node": "Merge Results", "type": "main", "index": 0 }
+        ]
       ]
     },
     "Fetch Anthropic Updates": {
       "main": [
-        [{ "node": "Merge Results", "type": "main", "index": 0 }]
+        [
+          { "node": "Merge Results", "type": "main", "index": 0 }
+        ]
       ]
     },
     "Fetch Google AI Updates": {
       "main": [
-        [{ "node": "Merge Results", "type": "main", "index": 0 }]
+        [
+          { "node": "Merge Results", "type": "main", "index": 0 }
+        ]
       ]
     },
     "Fetch HuggingFace Updates": {
       "main": [
-        [{ "node": "Merge Results", "type": "main", "index": 0 }]
+        [
+          { "node": "Merge Results", "type": "main", "index": 0 }
+        ]
       ]
     },
     "Fetch GitHub AI Updates": {
       "main": [
-        [{ "node": "Merge Results", "type": "main", "index": 0 }]
+        [
+          { "node": "Merge Results", "type": "main", "index": 0 }
+        ]
       ]
     },
     "Merge Results": {
       "main": [
-        [{ "node": "Extract Relevant Content", "type": "main", "index": 0 }]
+        [
+          { "node": "Extract Relevant Content", "type": "main", "index": 0 }
+        ]
       ]
     },
     "Extract Relevant Content": {
       "main": [
-        [{ "node": "Analyze Updates", "type": "main", "index": 0 }]
+        [
+          { "node": "Analyze Updates", "type": "main", "index": 0 }
+        ]
       ]
     },
     "Analyze Updates": {
       "main": [
-        [{ "node": "Compile Final Report", "type": "main", "index": 0 }]
+        [
+          { "node": "Compile Final Report", "type": "main", "index": 0 }
+        ]
       ]
     },
     "Compile Final Report": {
@@ -230,5 +237,8 @@
       ]
     }
   },
-  "settings": {}
+  "settings": {},
+  "staticData": {},
+  "createdAt": "2025-03-29T00:00:00.000Z",
+  "updatedAt": "2025-03-29T00:00:00.000Z"
 }
