@@ -1,0 +1,361 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "3da41bc3-a915-472a-b21b-c98408804f1c",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://openai.com/blog",
+        "options": {}
+      },
+      "id": "4cdc94ec-6da8-4f50-ac1a-10f3085433ae",
+      "name": "Fetch OpenAI Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        220,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.anthropic.com/news",
+        "options": {}
+      },
+      "id": "c60ed0aa-7c70-4eaa-8e13-f916fdf7395c",
+      "name": "Fetch Anthropic Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        220,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://blog.google/technology/ai/",
+        "options": {}
+      },
+      "id": "4be21de2-d8b5-43a8-b4d2-2cd5f1b81096",
+      "name": "Fetch Google AI Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        220,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://huggingface.co/blog",
+        "options": {}
+      },
+      "id": "8d55782f-c9b2-40c1-a357-468f7d39b6c8",
+      "name": "Fetch HuggingFace Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        220,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://github.blog/?s=Typescript+AI",
+        "allowUnauthorizedCerts": true,
+        "responseFormat": "file",
+        "options": {}
+      },
+      "id": "29722777-d528-4c71-a28a-8c48cf1a7827",
+      "name": "Fetch GitHub AI Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        220,
+        -420
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "632c18a7-b4d4-4c63-a32f-3f955fa6ad8d",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        440,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// This function would extract relevant content from the HTML responses\n// In a real implementation, you would use proper HTML parsing\nconst items = [];\nfor (const item of $input.all()) {\n try {\n // Extract basic info from the response\n // This is a simplified example - real implementation would need proper HTML parsing\n const source = item.json.url.includes('openai') ? 'OpenAI' : \n item.json.url.includes('anthropic') ? 'Anthropic' : \n item.json.url.includes('google') ? 'Google AI' :\n item.json.url.includes('huggingface') ? 'HuggingFace' :\n item.json.url.includes('github') ? 'GitHub' : 'Other';\n \n // Extract some content from the response\n // This is simplified - real implementation would need proper parsing\n const html = item.json.data;\n \n items.push({\n json: {\n source: source,\n rawContent: html,\n url: item.json.url\n }\n });\n } catch (error) {\n // Skip items that can't be processed\n }\n}\n\nreturn items;"
+      },
+      "id": "c2fa480f-1ab3-4d20-bf02-c1dfde5d41e9",
+      "name": "Extract Relevant Content",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        660,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "text": "=Please analyze the following content from AI provider websites and extract the 10 most interesting updates relevant to TypeScript developers:\n\n{{ $json.rawContent }}\n\nSource: {{ $json.source }}\nURL: {{ $json.url }}",
+        "options": {
+          "systemMessage": "You are an AI expert focused on helping TypeScript developers. Your task is to analyze the raw content from various AI provider blogs and news sources, and identify the 10 most interesting and relevant updates for TypeScript developers. Focus on updates that would be useful for building applications with AI models. For each update, extract: 1) The AI provider/model, 2) A brief summary of the update, 3) Why it's relevant for TypeScript developers, and 4) A potential use case or code example if applicable.",
+          "model": "claude-3-5-sonnet-20240620",
+          "temperature": 0.2
+        }
+      },
+      "id": "eb7eb82c-16f2-4ef8-b2e3-9b1d95339ff9",
+      "name": "Filter and Analyze Updates",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -20
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "your-anthropic-credential-id",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "=Please compile a final report of the 10 most interesting AI updates for TypeScript developers based on the following analyses:\n\n{{ $json.content }}",
+        "options": {
+          "systemMessage": "You are an AI expert focused on helping TypeScript developers. Your task is to compile a comprehensive report of the 10 most interesting AI updates from various providers that are specifically relevant to TypeScript developers. Format the report in a clean, organized way with sections for each update. Include code examples in TypeScript where relevant. Focus on practical applications and implementation details that would be useful for developers.",
+          "model": "claude-3-5-sonnet-20240620",
+          "temperature": 0.2
+        }
+      },
+      "id": "b691f156-6b1d-41bd-8a37-3091080f0376",
+      "name": "Compile Final Report",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [
+        1256,
+        -20
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "your-anthropic-credential-id",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "your-google-sheet-id",
+        "sheetName": "AI Updates for TypeScript Devs",
+        "dataMode": "autoMapInputData",
+        "options": {}
+      },
+      "id": "526a56cf-ad1a-4acb-ac25-86d2891a6266",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1632,
+        80
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "2uSIyUF3BUA3gqlp",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "andy@andyainsworth.tech",
+        "subject": "Weekly AI Updates for TypeScript Developers",
+        "message": "=Hi,\n\nHere are the latest AI updates relevant for TypeScript developers:\n\n{{ $json.content }}\n\nBest regards,\nYour AI Update Service",
+        "options": {}
+      },
+      "id": "8b8c8ae6-1b36-45ad-baf6-87c5dfb30ed4",
+      "name": "Send Email with Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        -120
+      ],
+      "webhookId": "46bd67ea-271c-43d4-bf2d-e9ca8585a2db",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "fHizFzSXA20E5UuI",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch OpenAI Updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Anthropic Updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Google AI Updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch HuggingFace Updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch GitHub AI Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch OpenAI Updates": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Anthropic Updates": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Google AI Updates": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch HuggingFace Updates": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch GitHub AI Updates": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Extract Relevant Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Relevant Content": {
+      "main": [
+        [
+          {
+            "node": "Filter and Analyze Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter and Analyze Updates": {
+      "main": [
+        [
+          {
+            "node": "Compile Final Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Final Report": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email with Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f291b4e7-d29c-4fdd-b852-93970453deb7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5698f57f6d841c03907ebc8358dc73a071d05b1664e8f30ba3803361c8e66bb5"
+  },
+  "id": "VNhsDZdXuTRGc1om",
+  "tags": []
+}
