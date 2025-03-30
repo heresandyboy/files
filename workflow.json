@@ -1,7 +1,4 @@
 {
-  "id": "1",
-  "name": "AI News Updates Workflow",
-  "active": false,
   "nodes": [
     {
       "id": "1",
@@ -30,7 +27,8 @@
       "parameters": {
         "url": "https://openai.com/blog",
         "method": "GET",
-        "authentication": "none"
+        "authentication": "none",
+        "options": {}
       }
     },
     {
@@ -42,7 +40,8 @@
       "parameters": {
         "url": "https://www.anthropic.com/news",
         "method": "GET",
-        "authentication": "none"
+        "authentication": "none",
+        "options": {}
       }
     },
     {
@@ -54,7 +53,8 @@
       "parameters": {
         "url": "https://blog.google/technology/ai/",
         "method": "GET",
-        "authentication": "none"
+        "authentication": "none",
+        "options": {}
       }
     },
     {
@@ -66,7 +66,8 @@
       "parameters": {
         "url": "https://huggingface.co/blog",
         "method": "GET",
-        "authentication": "none"
+        "authentication": "none",
+        "options": {}
       }
     },
     {
@@ -78,7 +79,8 @@
       "parameters": {
         "url": "https://github.blog/category/technology/ai/",
         "method": "GET",
-        "authentication": "none"
+        "authentication": "none",
+        "options": {}
       }
     },
     {
@@ -103,36 +105,53 @@
     },
     {
       "id": "9",
-      "name": "Analyze Updates",
-      "type": "n8n-nodes-base.function",
+      "name": "AI Analysis",
+      "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1,
       "position": [1000, 300],
       "parameters": {
-        "functionCode": "const items = $input.all();\nreturn items.map(item => {\n  const snippet = (item.json.rawContent || '').substring(0, 100);\n  return { json: { source: item.json.source, analysis: `Update from ${item.json.source}: ${snippet}...`, url: item.json.url } };\n});"
+        "options": {
+          "systemMessage": "You are an AI expert focused on helping TypeScript developers. Your task is to analyze the raw content from various AI provider blogs and news sources, and identify interesting and relevant updates for TypeScript developers. Focus on updates that would be useful for building applications with AI models. For each update, extract: 1) The AI provider/model, 2) A brief summary of the update, 3) Why it's relevant for TypeScript developers, and 4) A potential use case or code example if applicable."
+        },
+        "text": "=Please analyze the following content from {{ $json.source }} and extract updates relevant to TypeScript developers:\n\n{{ $json.rawContent }}\n\nSource: {{ $json.source }}\nURL: {{ $json.url }}"
       }
     },
     {
       "id": "10",
-      "name": "Compile Final Report",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "name": "Merge Analyses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
       "position": [1200, 300],
       "parameters": {
-        "functionCode": "const items = $input.all();\nlet report = 'AI Updates Report:\\n\\n';\nitems.forEach(item => {\n  report += `${item.json.source} update: ${item.json.analysis}\\nURL: ${item.json.url}\\n\\n`;\n});\nreturn [{ json: { content: report } }];"
+        "mode": "append"
       }
     },
     {
       "id": "11",
+      "name": "Compile Final Report",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [1400, 300],
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an AI expert focused on helping TypeScript developers. Your task is to compile a comprehensive report of the 10 most interesting AI updates from various providers that are specifically relevant to TypeScript developers. Format the report in a clean, organized way with sections for each update. Include code examples in TypeScript where relevant. Focus on practical applications and implementation details that would be useful for developers."
+        },
+        "text": "=Please compile a final report of the 10 most interesting AI updates for TypeScript developers based on the following analyses:\n\n{{ $json.content }}"
+      }
+    },
+    {
+      "id": "12",
       "name": "Save to Google Sheets",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 3,
-      "position": [1400, 300],
+      "position": [1600, 200],
       "parameters": {
         "operation": "append",
         "sheetName": "AI Updates for TypeScript Devs",
         "documentId": "your-google-sheet-id",
         "range": "A:C",
         "valueInputMode": "RAW",
+        "valueRenderMode": "FORMATTED_VALUE",
         "dataMode": "autoMap"
       },
       "credentials": {
@@ -140,18 +159,17 @@
       }
     },
     {
-      "id": "12",
+      "id": "13",
       "name": "Send Email with Gmail",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2,
-      "position": [1600, 300],
+      "position": [1600, 400],
       "parameters": {
         "operation": "sendEmail",
         "subject": "Weekly AI Provider Updates for TypeScript Developers",
         "message": "={{ $node[\"Compile Final Report\"].json.content }}",
         "to": "your-email@gmail.com",
         "options": {
-          "attachments": "",
           "htmlMessage": true
         }
       },
@@ -217,11 +235,18 @@
     "Extract Relevant Content": {
       "main": [
         [
-          { "node": "Analyze Updates", "type": "main", "index": 0 }
+          { "node": "AI Analysis", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Analyze Updates": {
+    "AI Analysis": {
+      "main": [
+        [
+          { "node": "Merge Analyses", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Merge Analyses": {
       "main": [
         [
           { "node": "Compile Final Report", "type": "main", "index": 0 }
@@ -236,9 +261,5 @@
         ]
       ]
     }
-  },
-  "settings": {},
-  "staticData": {},
-  "createdAt": "2025-03-29T00:00:00.000Z",
-  "updatedAt": "2025-03-29T00:00:00.000Z"
+  }
 }
